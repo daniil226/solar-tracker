@@ -1,258 +1,167 @@
-void dvig()
-{
+void dvig() {
     // Получаем текущее время один раз для использования в функции
-    const unsigned long currentMillis = millis(); 
-        if (isWindy) { 
-            // Если мы НЕ в режиме ожидания после перегрузки И количество попыток < 20
-            if (wind_overload_waiting == false && veter_int_tick < 20) {
-                regim = 4; // Работаем в штатном режиме защиты от ветра (едем в 0)
-            } 
-            else {
-                // Если была перегрузка (waiting) ИЛИ превышен лимит попыток
-                regim = 7;             // Переходим в режим ошибки (двигатели стоп)
-                veter_overload_tick++; // Начинаем отсчет времени паузы
-            }
-        
-            // Логика выхода из паузы: если отсчитали 10 тиков
-            if (veter_overload_tick >= 10) {
-                wind_overload_waiting = false; // Разрешаем движение снова
-                veter_overload_tick = 0;       // Сбрасываем таймер паузы (ВАЖНО добавить обнуление)
-                veter_int_tick++;              // Увеличиваем общий счетчик инцидентов
-            }
-        } 
-        else { 
-            // Логика, когда ветра нет...
-        }
-    if (stop_error == true) {
-        regim = 7; // Режим ошибки имеет наивысший приоритет
-    } else {
-        // --- Логика парковки по датчикам освещенности (гистерезис и таймер) ---
-        // (Предполагается, что PARK_ENTER_THRESHOLD, PARK_EXIT_THRESHOLD, PARK_DELAY_MS, parkovkaTimer объявлены глобально)
-        if (parkovka == false) { // Если сейчас не в режиме парковки
-            // Проверяем условие для ВХОДА в парковку
-            if (sensorValues[0] < PARK_ENTER_THRESHOLD &&
-                sensorValues[1] < PARK_ENTER_THRESHOLD &&
-                sensorValues[2] < PARK_ENTER_THRESHOLD &&
-                sensorValues[3] < PARK_ENTER_THRESHOLD)
-            {
-                // Если стало темно, и таймер еще не запущен, запускаем его
-                if (parkovkaTimer == 0) {
-                    parkovkaTimer = currentMillis;
-                }
-                // Если темно уже достаточно долго, паркуемся
-                if (currentMillis - parkovkaTimer >= PARK_DELAY_MS) {
-                    parkovka = true;
-                    parkovkaTimer = 0; // Сбросить таймер
-                }
-            } else {
-                // Если стало светло (или недостаточно темно), сбрасываем таймер
-                parkovkaTimer = 0;
-               // lcd.backlight(); // Включаем подсветку, если не паркуемся
-            }
-        } else { // Если сейчас в режиме парковки
-            // Проверяем условие для ВЫХОДА из парковки
-            if (sensorValues[0] > PARK_EXIT_THRESHOLD ||
-                sensorValues[1] > PARK_EXIT_THRESHOLD ||
-                sensorValues[2] > PARK_EXIT_THRESHOLD ||
-                sensorValues[3] > PARK_EXIT_THRESHOLD)
-            {
-                // Если стало светло, и таймер еще не запущен, запускаем его
-                if (parkovkaTimer == 0) {
-                    parkovkaTimer = currentMillis;
-                }
-                // Если светло уже достаточно долго, выходим из парковки
-                if (currentMillis - parkovkaTimer >= PARK_DELAY_MS) {
-                    parkovka = false;
-                    parkovkaTimer = 0; // Сбросить таймер
-                }
-            } else {
-                // Если снова стало темно (или недостаточно светло), сбрасываем таймер
-                parkovkaTimer = 0;
-                // lcd.noBacklight(); // В режиме парковки подсветка выключена
-            }
+    const unsigned long currentMillis = millis();
+
+    if (isWindy) {
+        // Если мы НЕ в режиме ожидания после перегрузки И количество попыток < 20
+        if (wind_overload_waiting == false && veter_int_tick < 20) {
+            regim = 4; // Работаем в штатном режиме защиты от ветра (едем в 0)
+        } else {
+            // Если была перегрузка (waiting) ИЛИ превышен лимит попыток
+            regim = 7;             // Переходим в режим ошибки (двигатели стоп)
+            veter_overload_tick++; // Начинаем отсчет времени паузы
         }
 
-        // --- Определение основного режима работы (regim) ---
-        if (hand_dvig == true) {
-            regim = 6; // Режим: Ручной (следующий приоритет)
+        // Логика выхода из паузы: если отсчитали 10 тиков
+        if (veter_overload_tick >= 10) {
+            wind_overload_waiting = false; // Разрешаем движение снова
+            veter_overload_tick = 0;       // Сбрасываем таймер паузы
+            veter_int_tick++;              // Увеличиваем общий счетчик инцидентов
+        }
+    } else {
+        if (stop_error == true) {
+            regim = 7; // Режим ошибки имеет наивысший приоритет
         } else {
-            // Теперь мы находимся в автоматическом режиме, и здесь проверяются условия окружения
-            if (parkovka == true) { // Если сейчас флаг parkovka установлен в true (по датчикам)
-                regim = 0; // Режим: Ночной (парковка)
-            } else {
-                // Сейчас "дневное время" (или достаточно светло), проверяем погодные условия
-                 if (isCloudy) { // isCloudy теперь определяется внешней логикой
-                    if (start_cloudy >= 900) {
-                        regim = 3; // Режим: Тучи или темно (облачно давно)
-                    } else {
-                        regim = 2; // Режим: Переменная облачность (недавно облачно)
+            // --- Логика парковки по датчикам освещенности ---
+            if (parkovka == false) { 
+                if (sensorValues[0] < PARK_ENTER_THRESHOLD &&
+                    sensorValues[1] < PARK_ENTER_THRESHOLD &&
+                    sensorValues[2] < PARK_ENTER_THRESHOLD &&
+                    sensorValues[3] < PARK_ENTER_THRESHOLD) 
+                {
+                    if (parkovkaTimer == 0) parkovkaTimer = currentMillis;
+                    if (currentMillis - parkovkaTimer >= PARK_DELAY_MS) {
+                        parkovka = true;
+                        parkovkaTimer = 0;
                     }
                 } else {
-                    regim = 1; // Режим: Ясно (по умолчанию, если нет других условий)
+                    parkovkaTimer = 0;
+                }
+            } else { 
+                if (sensorValues[0] > PARK_EXIT_THRESHOLD ||
+                    sensorValues[1] > PARK_EXIT_THRESHOLD ||
+                    sensorValues[2] > PARK_EXIT_THRESHOLD ||
+                    sensorValues[3] > PARK_EXIT_THRESHOLD) 
+                {
+                    if (parkovkaTimer == 0) parkovkaTimer = currentMillis;
+                    if (currentMillis - parkovkaTimer >= PARK_DELAY_MS) {
+                        parkovka = false;
+                        parkovkaTimer = 0;
+                    }
+                } else {
+                    parkovkaTimer = 0;
                 }
             }
-        }
-    } // Конец else для stop_error
-    }
-    
-    // --- Изначально выключаем все двигатели в начале каждого цикла ---
-    // НО ТОЛЬКО ЕСЛИ МЫ НЕ В РУЧНОМ РЕЖИМЕ И НЕ В РЕЖИМЕ КАЛИБРОВКИ
-    // Это позволяет ручному режиму и калибровке управлять двигателями напрямую.
-    if ( regim != 6) { // Если не калибровка и не ручной режим
+
+            // --- Определение основного режима работы (regim) ---
+            if (hand_dvig == true) {
+                regim = 6; 
+            } else {
+                if (parkovka == true) {
+                    regim = 0; 
+                } else {
+                    if (isCloudy) {
+                        regim = (start_cloudy >= 900) ? 3 : 2;
+                    } else {
+                        regim = 1; 
+                    }
+                }
+            }
+        } 
+    } // Конец блока isWindy/else
+
+    // --- Изначально выключаем все двигатели ---
+    if (regim != 6) { 
         dvig_up = false;
         dvig_down = false;
         dvig_left = false;
         dvig_right = false;
-    } 
+    }
 
     // --- Выполнение действий на основе regim ---
-    // В режимах 5 (Калибровка) и 6 (Ручной) эта часть кода НЕ управляет двигателями.
-    // Предполагается, что двигатели управляются внешними функциями или напрямую.
     switch (regim) {
-        case 0: // Ночной режим (парковка по датчикам)
-            if(Sost != 31 && Sost != 32 && Sost != 33){Sost = 31;}
-            break;
-        case 1: // Ясно
-            if(Sost != 21 && Sost != 22 && Sost != 23){Sost = 23;}
-            break;
-        case 2: // Переменная облачность
-            if(Sost != 15 ){Sost = 15;}
-            break;
-        case 3: // Тучи или темно (облачно давно)
-            if(Sost != 16 && Sost != 17 ){Sost = 16;}
-            break;
-        case 4: // Ветрено
-            if(Sost != 10 && Sost != 11 ){Sost = 10;}
-            break;
-        case 6: // Ручной режим
-            // ... ничего не делаем, ждем команды от оператора
-            break;
-        case 7: // Режим ошибки
-             if(Sost < 50 ){Sost = 51;}
-            // ... ничего не делаем, ждем команды от оператора
-            break;
+        case 0: if(Sost != 31 && Sost != 32 && Sost != 33) Sost = 31; break;
+        case 1: if(Sost != 21 && Sost != 22 && Sost != 23) Sost = 23; break;
+        case 2: if(Sost != 15) Sost = 15; break;
+        case 3: if(Sost != 16 && Sost != 17) Sost = 16; break;
+        case 4: if(Sost != 10 && Sost != 11) Sost = 10; break;
+        case 6: break; // Ручной
+        case 7: if(Sost < 50) Sost = 51; break;
     }
 
     // --- Машина состояний (Sost) ---
-    // Этот блок управляет двигателями только в автоматических режимах (где regim не 5 или 6)
     switch (Sost) {
-        case 0: // Начальное состояние или сброс после ошибки
-            // ничего не делаем с самого начала
+        case 10: 
+            dvig_down = true;
+            if (timer_dvig_down && !real_dvig_down) Sost = 11;
             break;
 
-        case 10: // Защита от ветра : Наклон на ноль
-            dvig_down   = true; // Движемся вверх (к горизонту/нулевому наклону)
-            // Если двигатель должен был двигаться (прошел пусковой ток), но не движется (ток низкий)
-            if (timer_dvig_down == true && real_dvig_down == false) {
-                Sost = 11; // Переходим в режим ожидания после защиты
-            }
-            // Предполагается, что внешняя функция обнулит polog_UD при достижении концевика
-            break;
-
-        case 11: // Ожидание после защиты от ветра
-                veter_int_tick = 0;      // Сбрасываем счетчик попыток, мы на месте
-                veter_overload_tick = 0; // На всякий случай обнуляем таймер пауз
-                wind_overload_waiting = false;
-            if (veter_on_tick <= 1) { // Если счетчик истек
-                isWindy = false; // Выключаем ветреное состояние
-                Sost = 0; // Или любое другое состояние по умолчанию, когда защита не нужна
+        case 11:
+            veter_int_tick = 0;
+            veter_overload_tick = 0;
+            wind_overload_waiting = false;
+            if (veter_on_tick <= 1) {
+                isWindy = false;
+                Sost = 0;
             }
             break;
 
-        case 15: // Облачно: Замереть
-            // Нет движения, просто ждать возвращения солнца
+        case 15: break; 
+
+        case 16:
+            dvig_down = true;
+            if (timer_dvig_down && !real_dvig_down) Sost = 17;
             break;
 
-        case 16: // Низкая освещенность (15 минут): Наклон в плоскость
-            dvig_down   = true; // Движемся вверх к нулю
-            // Если двигатель должен был двигаться (прошел пусковой ток), но не движется (ток низкий)
-            if (timer_dvig_down == true && real_dvig_down == false){
-                Sost = 17; // Переходим в состояние ожидания в плоском положении
-            }
-            // Предполагается, что внешняя функция обнулит polog_UD при достижении концевика
-            break;
+        case 17: break;
 
-        case 17: // Низкая освещенность: Ожидание в плоском положении
-            break;
-
-        case 21: // Нормальный режим: Горизонтальная коррекция
-            if (abs(normalizedLeftRight) > 20) { // Если разница значительна
-                // Определяем направление движения
-                bool movingLeft = (normalizedLeftRight < 0);
-                bool movingRight = (normalizedLeftRight > 0);
-
-                if (movingLeft) { dvig_left = true;} else if (movingRight) { dvig_right = true;}
-               
-                // Если двигатель должен был двигаться, но не движется (застрял/упор)
+        case 21: // Горизонтальная коррекция
+            if (abs(normalizedLeftRight) > 20) {
+                if (normalizedLeftRight < 0) dvig_left = true; else dvig_right = true;
                 if ((dvig_left && timer_dvig_left && !real_dvig_left) ||
                     (dvig_right && timer_dvig_right && !real_dvig_right)) {
-                    Sost = 22; // Переходим к вертикальной коррекции
+                    Sost = 22;
                 }
-            } else { // Горизонтальная коррекция завершена (разница мала)
-                Sost = 22; // Перейти к вертикальной коррекции
+            } else {
+                Sost = 22;
             }
             break;
 
-        case 22: // Нормальный режим: Вертикальная коррекция
-            if (abs(normalizedUpDown) > 20) { // Если разница значительна
-                // Определяем направление движения
-                bool movingUp = (normalizedUpDown > 0); // Свет снизу -> двигаться вверх (dvig_up)
-                bool movingDown = (normalizedUpDown < 0); // Свет сверху -> двигаться вниз (dvig_down)
-
-                if (movingUp) { dvig_down = true;} else if (movingDown) { dvig_up = true; }
-                
-                // Если двигатель должен был двигаться, но не движется (застрял/упор)
+        case 22: // Вертикальная коррекция
+            if (abs(normalizedUpDown) > 20) {
+                if (normalizedUpDown > 0) dvig_down = true; else dvig_up = true;
                 if ((dvig_up && timer_dvig_up && !real_dvig_up) ||
                     (dvig_down && timer_dvig_down && !real_dvig_down)) {
-                    correction_pass_count++; // Увеличить счетчик проходов
-                    if (correction_pass_count < 2) {
-                        Sost = 21; // Вернуться к горизонтальной коррекции для второго прохода
-                    } else {
-                        Sost = 23; // Завершено 2 прохода, перейти в режим ожидания
-                        correction_pass_count = 0; // Сброс счетчика для следующей основной коррекции
-                        time_last_corr = timerab; // Обновить время последней коррекции после полной коррекции
-                    }
+                    correction_pass_count++;
+                    Sost = (correction_pass_count < 2) ? 21 : 23;
+                    if (Sost == 23) { correction_pass_count = 0; time_last_corr = timerab; }
                 }
-            } else { // Вертикальная коррекция завершена (разница мала)
-                correction_pass_count++; // Увеличить счетчик проходов
-                if (correction_pass_count < 2) {
-                    Sost = 21; // Вернуться к горизонтальной коррекции для второго прохода
-                } else {
-                    Sost = 23; // Завершено 2 прохода, перейти в режим ожидания
-                    correction_pass_count = 0; // Сброс счетчика для следующей основной коррекции
-                    time_last_corr = timerab; // Обновить время последней коррекции после полной коррекции
-                }
+            } else {
+                correction_pass_count++;
+                Sost = (correction_pass_count < 2) ? 21 : 23;
+                if (Sost == 23) { correction_pass_count = 0; time_last_corr = timerab; }
             }
             break;
 
         case 23:
-            // Проверяем, прошло ли достаточно времени
-            if (timerab - time_last_corr > 14 || time_tic_sek <30) {
-              Sost = 21; // Начать новый цикл коррекции
-              correction_pass_count = 0;
-              time_last_corr = timerab;
+            if (timerab - time_last_corr > 14 || time_tic_sek < 30) {
+                Sost = 21;
+                correction_pass_count = 0;
+                time_last_corr = timerab;
             }
             break;
 
-        case 31: // Парковка: Наклон на ноль (ось UD)
-            dvig_down   = true; // Движемся вверх к нулевому наклону
-            // Если двигатель должен был двигаться (прошел пусковой ток), но не движется (ток низкий)
-            if (timer_dvig_down == true && real_dvig_down == false) {
-                Sost = 32; // Перейти к повороту на ноль (ось LR)
-            }
-            // Предполагается, что внешняя функция обнулит polog_UD при достижении концевика
+        case 31:
+            dvig_down = true;
+            if (timer_dvig_down && !real_dvig_down) Sost = 32;
             break;
 
-        case 32: // Парковка: Поворот на ноль (ось LR)
-            dvig_left = true; // Движемся влево к нулевому повороту
-            // Если двигатель должен был двигаться (прошел пусковой ток), но не движется (ток низкий)
-            if (timer_dvig_left == true && real_dvig_left == false) {
-                Sost = 33; // Парковка завершена
-            }
-            break; 
-
-        case 33: // Парковка: Стоим в нулевом положении
+        case 32:
+            dvig_left = true;
+            if (timer_dvig_left && !real_dvig_left) Sost = 33;
             break;
+
+        case 33: break; // Парковка: Стоим в нулевом положении
         case 50: break;// Ошибка: Общая
         case 51: break;// Ошибка: Общая
         case 52: break;// Ошибка: Перегрузка по току LR
@@ -267,5 +176,6 @@ void dvig()
         // Двигатели должны быть выключены.
         break;
 
+        default: break; // Ошибки 50-58
     }
 }
